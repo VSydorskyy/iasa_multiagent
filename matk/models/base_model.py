@@ -30,7 +30,7 @@ class _BaseModel(object):
 
         for coord in points:
             x_c, y_c = self.process_point_for_painting(coord)
-            field[x_c, y_c, 0] = 255
+            field[x_c, y_c] = 1
 
         self.field_history.append(field)
 
