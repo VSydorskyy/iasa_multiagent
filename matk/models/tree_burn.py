@@ -39,8 +39,8 @@ class TreeBurnModel(_BaseModel):
         # Set trees
         action[:, :, T] = tree_mask
         # Burn trees
-        action[:, 0, T] = False
-        action[:, 0, F] = True
+        action[action[:, 0, T], 0, F] = True
+        action[action[:, 0, T], 0, T] = False
 
         self.action_history.append(action)
         self.field_history.append(self.convert_action2field(action))
@@ -62,6 +62,9 @@ class TreeBurnModel(_BaseModel):
                 if action[x + dx, y + dy, T]:
                     action[x + dx, y + dy, T] = False
                     action[x + dx, y + dy, F] = True
+
+        if action[:, :, F].sum() == 0:
+            self.stop = True
 
         self.field_history.append(self.convert_action2field(action))
         self.action_history.append(action)
