@@ -45,6 +45,10 @@ class GameOfLifeModel(_BaseModel):
         neighbors_sum = 0
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
+                # Skip middle point
+                if dx == 0 and dy == 0:
+                    continue
+
                 coords = self.process_point_for_painting(
                     [coord[0] + dx, coord[1] + dy]
                 )
