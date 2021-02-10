@@ -19,6 +19,8 @@ class _BaseModel(object):
 
         self.field_history = []
 
+        self.stop = False
+
     def create_field(self):
         raise NotImplementedError("create_field not implemented")
 
@@ -65,14 +67,19 @@ class _BaseModel(object):
 
     def reset(self):
         self.field_history = []
+        self.stop = False
         self.reset_partial()
 
     def run_n_steps(self, n: int):
         self.reset()
         self.create_field()
         for _ in tqdm(range(n)):
+            if self.stop:
+                break
             self.step()
 
     def run_more_n_steps(self, n: int):
         for _ in tqdm(range(n)):
+            if self.stop:
+                break
             self.step()
