@@ -83,6 +83,7 @@ class CenterModel(_BaseModel):
             current_is_placed[i] = new_is_placed
             current_coord[i] = new_coord
 
+        self.stop = (~current_is_placed).sum() == 0
         self.is_placed.append(current_is_placed)
         self.points.append(current_coord)
         self.markup_field(current_coord, current_is_placed)
@@ -129,3 +130,4 @@ class CenterModel(_BaseModel):
         self.is_placed = []
         self.points = []
         self.point_turn = None
+        self.stop = False
