@@ -224,7 +224,7 @@ class TreeBurnModel(_BaseModel):
 
                 if self.right_p is None:
                     right_step = True
-                    left_step = False
+                    left_step = True
                 else:
                     right_step = bool(np.random.binomial(n=1, p=self.right_p))
                     left_step = not right_step
@@ -249,7 +249,7 @@ class TreeBurnModel(_BaseModel):
                         if do_continue:
                             continue
             else:
-                for dx, dy in [(1, 0), (-1, 0), (0, 1)]:
+                for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
                     action, do_continue = self.burn_one(action, x + dx, y + dy)
                     if do_continue:
                         continue
