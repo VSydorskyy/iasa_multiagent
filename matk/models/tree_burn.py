@@ -1,6 +1,6 @@
 import math
 
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 import numpy as np
 
@@ -8,14 +8,20 @@ from .base_model import _BaseModel
 
 # R G B
 TREE = [0, 255, 0]
+SLOW_TREE = [0, 0, 155]
 BURNT = [100, 0, 0]
 IN_FIRE = [255, 0, 0]
 LAKE = [0, 0, 255]
+GRASS = [0, 100, 0]
 # Actions
 T = 0
 B = 1
 F = 2
 L = 3
+ST = 4
+G = 5
+# Other consts
+SLOW_BURN = 5
 
 
 def check_interval(variable, variable_name, min_v, max_v):
@@ -30,12 +36,15 @@ class TreeBurnModel(_BaseModel):
         self,
         field_size: Tuple[int, int],
         forest_density: float,
+        slow_tree_density: Optional[float] = None,
+        slow_tree_burn_prob: float = 0.5,
         activate_wind: bool = False,
-        #         wind_angle: float = 0
         horizontal_wind: float = 0.0,
         vertical_wind: float = 0.0,
         n_lakes: int = 0,
         lake_area: int = 0,
+        n_grasses: int = 0,
+        grass_area: int = 0,
     ):
         check_interval(forest_density, "forest_density", 0, 1)
         check_interval(horizontal_wind, "horizontal_wind", -25, 25)
@@ -44,7 +53,22 @@ class TreeBurnModel(_BaseModel):
         check_interval(
             lake_area, "lake_area", 0, min(field_size[0], field_size[1]) * 0.5
         )
-        #         check_interval(wind_angle, 'wind_angle', 0, 360)
+        check_interval(n_grasses, "n_grasses", 0, 5)
+        check_interval(
+            grass_area,
+            "grass_area",
+            0,
+            min(field_size[0], field_size[1]) * 0.5,
+        )
+        if slow_tree_density is not None:
+            self.use_slow_tree = True
+            check_interval(slow_tree_density, "slow_tree_density", 0, 1)
+            check_interval(slow_tree_burn_prob, "slow_tree_burn_prob", 0, 1)
+            self.slow_tree_burn_prob = slow_tree_burn_prob
+            self.slow_tree_density = slow_tree_density
+            self.burn_time = dict()
+        else:
+            self.use_slow_tree = False
 
         super().__init__(
             n_points=None,
@@ -62,12 +86,14 @@ class TreeBurnModel(_BaseModel):
             self.up_p = None
         else:
             self.up_p = (vertical_wind + 25) / 50
-        #         wind_rad = math.radians(wind_angle)
-        #         self.right_p = 1 - ((math.cos(wind_rad) + 1) / 2)
-        #         self.up_p = (math.sin(wind_rad) + 1) / 2
 
         self.n_lakes = n_lakes
         self.lake_area = lake_area
+
+        self.n_grasses = n_grasses
+        self.grass_area = grass_area
+        if n_grasses > 0:
+            self.grasses = []
 
         self.forest_density = forest_density
         self.action_history = []
@@ -81,27 +107,78 @@ class TreeBurnModel(_BaseModel):
         )
 
         for x, y in zip(x_lefts, y_lefts):
-            action[x : x + self.lake_area, y : y + self.lake_area, T] = False
+            action[x : x + self.lake_area, y : y + self.lake_area, :] = False
             action[x : x + self.lake_area, y : y + self.lake_area, L] = True
 
+        return action
+
+    def place_grass(self, action):
+        x_lefts = np.random.randint(
+            low=0,
+            high=self.field_size[1] - self.grass_area,
+            size=self.n_grasses,
+        )
+        y_lefts = np.random.randint(
+            low=0,
+            high=self.field_size[0] - self.grass_area,
+            size=self.n_grasses,
+        )
+
+        for x, y in zip(x_lefts, y_lefts):
+            action[x : x + self.grass_area, y : y + self.grass_area, :] = False
+            action[x : x + self.grass_area, y : y + self.grass_area, G] = True
+            self.grasses.append((x, y))
+
+        return action
+
+    def place_slow_trees(self, action):
+        tree_placed = np.where(action[:, :, T])
+        for x, y in zip(*tree_placed):
+            if np.random.binomial(n=1, p=self.slow_tree_density):
+                action[x, y, T] = False
+                action[x, y, ST] = True
+                self.burn_time[str(x) + str(y)] = 0
         return action
 
     def create_field(self):
         tree_mask = np.random.binomial(
             n=1, p=self.forest_density, size=self.field_size
         ).astype(bool)
-        action = np.zeros((*self.field_size, 4), dtype=bool)
+        action = np.zeros((*self.field_size, 6), dtype=bool)
         # Set trees
         action[:, :, T] = tree_mask
+        # Pace Grass
+        if self.n_grasses > 0:
+            action = self.place_grass(action)
         # Burn trees
         action[action[:, 0, T], 0, F] = True
         action[action[:, 0, T], 0, T] = False
+        action[action[:, 0, T], 0, G] = False
         # Place lakes
         if self.n_lakes > 0:
             action = self.place_lakes(action)
+        # Place slow trees
+        if self.use_slow_tree:
+            action = self.place_slow_trees(action)
 
         self.action_history.append(action)
         self.field_history.append(self.convert_action2field(action))
+
+    def burn_grass(self, action, x_cor, y_cor):
+        for x_g, y_g in self.grasses:
+            if (x_g <= x_cor < x_g + self.grass_area) and (
+                y_g <= y_cor < y_g + self.grass_area
+            ):
+                action[
+                    x_g : x_g + self.grass_area, y_g : y_g + self.grass_area, F
+                ] = True
+                action[
+                    x_g : x_g + self.grass_area,
+                    y_cor : y_g + self.grass_area,
+                    G,
+                ] = False
+
+        return action
 
     def burn_one(self, action, x_cor, y_cor):
         if (
@@ -115,6 +192,13 @@ class TreeBurnModel(_BaseModel):
             action[x_cor, y_cor, T] = False
             action[x_cor, y_cor, F] = True
             return action, False
+        elif action[x_cor, y_cor, ST]:
+            action[x_cor, y_cor, F] = True
+            self.burn_time[str(x_cor) + str(y_cor)] += 1
+            return action, False
+        elif action[x_cor, y_cor, G]:
+            action = self.burn_grass(action, x_cor, y_cor)
+            return action, False
 
         return action, False
 
@@ -122,8 +206,20 @@ class TreeBurnModel(_BaseModel):
         action = self.action_history[-1].copy()
         x_coords, y_coords = np.where(action[:, :, F])
         for x, y in zip(x_coords, y_coords):
-            action[x, y, F] = False
-            action[x, y, B] = True
+            # Burn Slow tree
+            if action[x, y, ST] and action[x, y, F]:
+                self.burn_time[str(x) + str(y)] += 1
+                if self.burn_time[str(x) + str(y)] >= 5:
+                    if np.random.binomial(n=1, p=self.slow_tree_burn_prob):
+                        action[x, y, ST] = False
+                        action[x, y, F] = False
+                        action[x, y, B] = True
+                    else:
+                        action[x, y, F] = False
+            # Burn ordinary trees
+            else:
+                action[x, y, F] = False
+                action[x, y, B] = True
             if self.activate_wind:
 
                 if self.right_p is None:
@@ -167,10 +263,13 @@ class TreeBurnModel(_BaseModel):
     def convert_action2field(self, action: np.ndarray):
         field = np.zeros((*self.field_size, 3), dtype=np.uint8)
         field[action[:, :, T]] = TREE
+        field[action[:, :, ST]] = SLOW_TREE
         field[action[:, :, F]] = IN_FIRE
         field[action[:, :, B]] = BURNT
         field[action[:, :, L]] = LAKE
+        field[action[:, :, G]] = GRASS
         return field
 
     def reset_partial(self):
         self.action_history = []
+        self.burn_time = dict()
