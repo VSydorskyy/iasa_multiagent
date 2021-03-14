@@ -21,6 +21,13 @@ class _BaseModel(object):
 
         self.stop = False
 
+    @staticmethod
+    def create_generator(n: int, verbose: bool):
+        if verbose:
+            return tqdm(range(n))
+        else:
+            return range(n)
+
     def create_field(self):
         raise NotImplementedError("create_field not implemented")
 
@@ -70,16 +77,16 @@ class _BaseModel(object):
         self.stop = False
         self.reset_partial()
 
-    def run_n_steps(self, n: int):
+    def run_n_steps(self, n: int, verbose: bool = True):
         self.reset()
         self.create_field()
-        for _ in tqdm(range(n)):
+        for _ in self.create_generator(n, verbose):
             if self.stop:
                 break
             self.step()
 
-    def run_more_n_steps(self, n: int):
-        for _ in tqdm(range(n)):
+    def run_more_n_steps(self, n: int, verbose: bool = True):
+        for _ in self.create_generator(n, verbose):
             if self.stop:
                 break
             self.step()
