@@ -23,6 +23,7 @@ class FlockingModel(_BaseModel):
         eagles_speed: int = 0.125,
         eagles_step_size: int = 1,
         eagles_attack_radius: float = 3,
+        use_flock_analyze: bool = True,
     ):
         super().__init__(
             n_points=n_points,
@@ -38,6 +39,13 @@ class FlockingModel(_BaseModel):
 
         self.vision = vision
         self.minimum_separation = minimum_separation
+
+        self.use_flock_analyze = use_flock_analyze
+        # variant1
+        if self.use_flock_analyze:
+            self.min_flock_samples = min_flock_samples
+            self.flock_clusters = None  # np.array
+            self.flock_history = []
 
         self.use_eagles = n_eagles > 0
         if self.use_eagles:
@@ -81,6 +89,9 @@ class FlockingModel(_BaseModel):
             point_coords[:, 2:]
             / np.linalg.norm(point_coords[:, 2:], axis=-1)[:, None]
         )
+
+        if self.use_flock_analyze:
+            self.flock_clusters = np.arange(self.n_points)
 
         if self.n_eagles > 0:
             eagles_coords = [
@@ -190,11 +201,48 @@ class FlockingModel(_BaseModel):
 
         return velocity
 
+    # variant1
+    def compute_flocks(self, coords):
+        def metric(x1, x2):
+            adx = np.abs(x1[0] - x2[0])
+            ady = np.abs(x1[1] - x2[1])
+            return (
+                np.minimum(adx, self.field_size[0] - adx) ** 2
+                + np.minimum(ady, self.field_size[1] - ady) ** 2
+            ) ** 0.5
+
+        clst = DBSCAN(
+            eps=2 * self.minimum_separation,
+            metric=metric,
+            min_samples=self.min_flock_samples,
+        )
+        clusters = clst.fit_predict(coords)
+        self.flock_clusters = np.array(clusters)
+
+    def get_avarage_flock_statistics(self, velocities):
+        result = {}
+        result["n_flocks"] = len(np.unique(self.flock_clusters))
+        result["flocks_means"] = {}
+        result["flocks_variances"] = {}
+
+        for flock in np.unique(self.flock_clusters):
+            mask = self.flock_clusters == flock
+            result["flocks_means"][flock] = np.mean(velocities[mask], axis=0)
+            result["flocks_variances"][flock] = np.var(
+                np.arctan2(velocities[mask][:, 0], velocities[mask][:, 1])
+            )
+
+        self.flock_history.append(result)
+
     # need to add all find_neighbours and done
     def step(self):
         # x, y, vel_x, vel_y
         current_coords = self.points[-1].copy()
         new_coords = np.zeros_like(current_coords)
+
+        if self.use_flock_analyze:
+            self.compute_flocks(current_coords[:, :2])
+            self.get_avarage_flock_statistics(current_coords[:, 2:])
 
         for bird_id, bird in enumerate(current_coords):
             bird_coord = bird[:2]
