@@ -1,4 +1,5 @@
 from typing import Tuple, Optional
+from sklearn.cluster import DBSCAN
 
 import numpy as np
 
@@ -24,6 +25,7 @@ class FlockingModel(_BaseModel):
         eagles_step_size: int = 1,
         eagles_attack_radius: float = 3,
         use_flock_analyze: bool = True,
+        min_flock_samples: int = 2,
     ):
         super().__init__(
             n_points=n_points,
@@ -42,8 +44,8 @@ class FlockingModel(_BaseModel):
 
         self.use_flock_analyze = use_flock_analyze
         # variant1
+        self.min_flock_samples = min_flock_samples
         if self.use_flock_analyze:
-            self.min_flock_samples = min_flock_samples
             self.flock_clusters = None  # np.array
             self.flock_history = []
 
