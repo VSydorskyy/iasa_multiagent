@@ -237,7 +237,6 @@ class TreeBurnModel(_BaseModel):
                 else:
                     up_step = bool(np.random.binomial(n=1, p=self.up_p))
                     down_step = bool(np.random.binomial(n=1, p=1 - self.up_p))
-
                 for dx, dy, p in [
                     (1, 0, down_step),
                     (-1, 0, up_step),
