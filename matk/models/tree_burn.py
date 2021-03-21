@@ -227,14 +227,16 @@ class TreeBurnModel(_BaseModel):
                     left_step = True
                 else:
                     right_step = bool(np.random.binomial(n=1, p=self.right_p))
-                    left_step = not right_step
+                    left_step = bool(
+                        np.random.binomial(n=1, p=1 - self.right_p)
+                    )
 
                 if self.up_p is None:
                     up_step = True
                     down_step = True
                 else:
                     up_step = bool(np.random.binomial(n=1, p=self.up_p))
-                    down_step = not up_step
+                    down_step = bool(np.random.binomial(n=1, p=1 - self.up_p))
 
                 for dx, dy, p in [
                     (1, 0, down_step),
