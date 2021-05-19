@@ -173,3 +173,4 @@ class QLearning(object):
             }
 
         self.hashed_runs = []
+        self.q_maps = None

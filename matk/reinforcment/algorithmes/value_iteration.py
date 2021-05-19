@@ -149,3 +149,17 @@ class ValueItteration(object):
         for k, v in self.v.items():
             self.value_maps["value"][k[0], k[1]] = v
             self.value_maps["action"][k[0], k[1]] = self.policy[k]
+
+    def reset(self):
+        self.policy = {}
+        for s in self.environment.states:
+            self.policy[s] = np.random.choice(
+                self.environment.get_possible_actions(s)
+            )
+        self.hashed_policies = [deepcopy(self.policy)]
+
+        self.v = {}
+        for s in self.environment.states:
+            self.v[s] = self.environment.get_reward(s)
+
+        self.value_maps = None
