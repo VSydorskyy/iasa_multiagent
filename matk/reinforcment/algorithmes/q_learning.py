@@ -151,14 +151,16 @@ class QLearning(object):
             k: np.zeros((self.environment.size, self.environment.size))
             for k in ["left", "right", "up", "down"]
         }
-        self.q_maps["action"] = np.empty(
-            (self.environment.size, self.environment.size), dtype=np.str
+        self.q_maps["action"] = np.full(
+            (self.environment.size, self.environment.size), "none"
         )
 
         for k, v in self.q_table.items():
             for k_2, v_2 in v.items():
                 self.q_maps[k_2][k[0], k[1]] = v_2
-            self.q_maps["action"][k[0], k[1]] = max(v, key=v.get)
+            self.q_maps["action"][k[0], k[1]] = (
+                max(v, key=v.get) if len(v) > 0 else "none"
+            )
 
         self.q_maps["max"] = np.stack(
             list([self.q_maps[k] for k in ["left", "right", "up", "down"]]),

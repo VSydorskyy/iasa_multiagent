@@ -84,8 +84,8 @@ class ValueItteration(object):
                         continue
 
                     old_v = self.v[s]
-                    new_v = 0
 
+                    temp_values = []
                     for a in possible_actions:
                         value = self.v[
                             self.environment.agent.get_coord_from_action(a, s)
@@ -111,20 +111,16 @@ class ValueItteration(object):
                                 if a_r != a
                             ]
                         )
-
-                        v = self.environment.get_reward(s) + (
-                            self.gamma
-                            * (
-                                value * main_prob
-                                + additional_prob * additional_value
-                            )
+                        temp_values.append(
+                            value * main_prob
+                            + additional_prob * additional_value
                         )
 
-                        if v > new_v:
-                            new_v = v
-                            self.policy[s] = a
+                    self.v[s] = self.environment.get_reward(
+                        s
+                    ) + self.gamma * np.max(temp_values)
+                    self.policy[s] = possible_actions[np.argmax(temp_values)]
 
-                    self.v[s] = new_v
                     biggest_change = max(
                         biggest_change, np.abs(old_v - self.v[s])
                     )
@@ -136,13 +132,15 @@ class ValueItteration(object):
 
         self.compute_value_maps()
         if verbose:
-            print(f"Converged in {iteration} iterations")
+            print(
+                f"Converged in {iteration} iterations. Biggest change: {biggest_change}"
+            )
 
     def compute_value_maps(self):
         self.value_maps = {
             "value": np.zeros((self.environment.size, self.environment.size)),
-            "action": np.empty(
-                (self.environment.size, self.environment.size), dtype=np.str
+            "action": np.full(
+                (self.environment.size, self.environment.size), "none"
             ),
         }
 
