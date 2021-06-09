@@ -13,6 +13,6 @@ setup(
     description=("Different Multiagnet System models"),
     author="Vladimir Sydorskyi",
     python_requires=">=3.7",
-    install_requires=["tqdm==4.48.0", "matplotlib==3.3.0", "numpy==1.17.2"],
+    install_requires=["tqdm==4.48.0", "matplotlib==3.4.1", "numpy==1.20.3"],
     packages=find_packages(),
 )
